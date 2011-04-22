@@ -1143,14 +1143,21 @@ def install_python(home_dir, lib_dir, inc_dir, bin_dir, site_packages, clear):
 
         # And then change the install_name of the copied python executable
         try:
-            call_subprocess(
-                ["install_name_tool", "-change",
-                 os.path.join(prefix, 'Python'),
-                 '@executable_path/../.Python',
-                 py_executable])
+            from macholib.MachO import MachO
+
+            mapping = { os.path.join(prefix, 'Python'):
+                        '@executable_path/../.Python'
+                      }
+            def changefunc(key):
+                return mapping.get(key)
+
+            m = MachO(py_executable)
+            m.rewriteLoadCommands(changefunc)
+            m.write(open(py_executable, 'rb+'))
+
         except:
             logger.fatal(
-                "Could not call install_name_tool -- you must have Apple's development tools installed")
+                "Could not rewrite macho load table must have macholib installed")
             raise
 
         # Some tools depend on pythonX.Y being present
